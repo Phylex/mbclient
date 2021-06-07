@@ -3,6 +3,7 @@ This module contains the data-types neccesary to describe the data being
 handeled by the mbfilter client
 
 """
+import struct
 
 class MeasuredPeak:
     """a class that represents an event measured by the MBFilter"""
@@ -39,3 +40,27 @@ cycle: {self.cycle}, speed: {self.speed}"
 
     def as_line(self):
         return f"{self.timestamp},{self.peak_height},{self.cycle},{self.speed}\n"
+
+    @staticmethod
+    def decode_from_bytes(array):
+        tmp = bytearray(b'\x00\x00\x00\x00')
+        largetmp = bytearray(b'\x00\x00\x00\x00\x00\x00\x00\x00')
+        for i, b in enumerate(array[0:5]):
+            largetmp[i] |= b
+        timestamp = struct.unpack('<Q', largetmp)
+        for i, b in enumerate(array[5:7]):
+            tmp[i] |= b
+        tmp[2] |= array[7] & 0x03
+        cycle = struct.unpack('<I', tmp)
+        tmp = bytearray(b'\x00\x00\x00\x00')
+        tmp[0] = array[7] >> 2
+        tmp[0] |= (array[8] << 6) & 0xff
+        tmp[1] = (array[8] & 0x0c) >> 2
+        speed = struct.unpack('<I', tmp)
+        tmp = bytearray(b'\x00\x00\x00\x00')
+        tmp[0] = array[8] >> 4
+        for i, b in enumerate(array[9:12]):
+            tmp[i] |= (b << 4) & 0xff
+            tmp[i+1] = b >> 4
+        peak_height = struct.unpack('<I', tmp)
+        return MeasuredPeak(timestamp, peak_height, cycle, speed)

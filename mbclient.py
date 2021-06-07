@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 
 # WS client example
 
@@ -58,16 +58,22 @@ async def process_data(uri, output, stop_event, process_tasks, max_count):
             if stop_event.is_set():
                 await websocket.close()
                 break
-            line = await websocket.recv()
-            peak = mbd.MeasuredPeak.decode_from_line(line)
-            output.write(peak.as_line())
-            count += 1
-            print("measured peaks: {}".format(count), end='\r')
-            for task in process_tasks:
-                asyncio.create_task(task(peak))
-            if max_count is not None:
-                if  max_count <= count:
-                    break
+            msg = await websocket.recv()
+            if len(msg) % 12 != 0:
+                raise ValueError("msg wrong length: {}".format(len(msg)))
+            else:
+                peaks = len(msg)/12
+                for i in range(int(peaks)):
+                    pd = msg[i*12:(i+1)*12]
+                    peak = mbd.MeasuredPeak.decode_from_bytes(pd)
+                    output.write(peak.as_line())
+                    count += 1
+                    print("measured peaks: {}".format(count), end='\r')
+                    for task in process_tasks:
+                        asyncio.create_task(task(peak))
+                    if max_count is not None:
+                        if  max_count <= count:
+                            break
 
 async def read_from_keyboard(raw_input, stopEvent):
     while True:
