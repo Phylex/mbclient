@@ -31,11 +31,10 @@ cycle: {self.cycle}, speed: {self.speed}"
         line: sting
         This is the line that comes from the websocket directly from the server
         """
-        variables = line.split()
+        variables = line.split(',')
         decoded_vars =[]
         for var in variables:
-            # the values are big-endian encoded and have to be reversed and then converted
-            decoded_vars.append(int(''.join([var[j:j+2] for j in range(0, len(var), 2)][::-1]), 16))
+            decoded_vars.append(int(var))
         return MeasuredPeak(decoded_vars[0], decoded_vars[1], decoded_vars[2], decoded_vars[3])
 
     def as_line(self):
