@@ -9,29 +9,50 @@ import argparse as ap
 import websockets
 import numpy as np
 import matplotlib.pyplot as plt
-import mbdatatypes as mbd
+import mbdatatypes as mb
+from multiprocessing import Process, Queue
 
-class Prompt:
-    """Class that encapsulates the stdin in an asynchronous fashion so
-    it can be used to stop the data-taking.
-    """
-    def __init__(self, loop=None):
-        """initialize the object and add a reader to the event-loop"""
-        self.loop = loop or asyncio.get_event_loop()
-        self.queue = asyncio.Queue()
-        self.loop.add_reader(sys.stdin, self.got_input)
+async def plotting_process(queue, hist_bins, attribute):
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+    hist, b, patches = plt.hist([], hist_bins)
+    while True:
+        if queue.empty():
+            continue
+        peaks = queue.get()
+        if type(peaks) == str:
+            if peaks == 'stop':
+                break
+        else:
+            data = [peak[attribute] for peak in peaks]
+            n, _ = np.histogram(data, hist_bins)
+            hist += n
+            for c, r in zip(hist, patches.patches):
+                r.set_height(c)
+            fig.canvas.daw()
+            plt.pause(.1)
 
-    def got_input(self):
-        """put a task onto the queue that reacts to a std readline"""
-        asyncio.ensure_future(self.queue.put(sys.stdin.readline()), loop=self.loop)
 
-    async def __call__(self, msg, end='\n', flush=False):
-        """this function executes when the object gets called, it's the
-        part that initiates the whole thing"""
-        print(msg, end=end, flush=flush)
-        return (await self.queue.get()).rstrip('\n')
 
-async def process_data(uri, output, stop_event, process_tasks, max_count):
+async def write_to_file(queue, filename):
+    with open(filename, 'w+') as f:
+        while True
+            try:
+                peak = await queue.get()
+            except asyncio.CancelledError:
+                break
+            f.write(peak.as_line())
+
+async def write_to_other_process(aqueue, pqueue):
+    while True
+        try:
+            peaks = await aqueue.get()
+        except asyncio.CancelledError:
+            pqueue.put("stop")
+            break
+        pqueue.put(peaks)
+
+async def process_data(uri, data_queues):
     """Coroutine that receives the data from the server
 
     This coroutine is the only one that directly reads frames from
@@ -55,34 +76,39 @@ async def process_data(uri, output, stop_event, process_tasks, max_count):
         output.write("timestamp,peak_height,cycle,speed\n")
         count = 0
         while True:
-            if stop_event.is_set():
+            try:
+                msg = await websocket.recv()
+            except asyncio.CancelledError:
                 await websocket.close()
+                print('', end='\r')
+                print('Shutting Down')
+                print('Parameters of the experiment:')
+                print('k: {}\nl: {}\nm: {}'.format(args.k, args.l, args.m))
+                print('peak threshhold: {}'.format(args.peakthresh))
+                print('accumulation time: {}'.format(args.deadtime))
+                print('')
+                print('A total of {} peaks where recorded'.format(count))
                 break
-            msg = await websocket.recv()
             if len(msg) % 12 != 0:
                 raise ValueError("msg wrong length: {}".format(len(msg)))
             else:
                 peaks = len(msg)/12
+                decoded_peaks = []
                 for i in range(int(peaks)):
                     pd = msg[i*12:(i+1)*12]
-                    peak = mbd.MeasuredPeak.decode_from_bytes(pd)
-                    output.write(peak.as_line())
+                    decoded_peaks.append(mbd.MeasuredPeak.decode_from_bytes(pd))
                     count += 1
                     print("measured peaks: {}".format(count), end='\r')
-                    for task in process_tasks:
-                        asyncio.create_task(task(peak))
-                    if max_count is not None:
-                        if  max_count <= count:
-                            break
+                for queue in data_queues:
+                    await queue.put(decoded_peaks)
 
-async def read_from_keyboard(raw_input, stopEvent):
-    while True:
-        command = await raw_input("enter 'stop' to stop the data-taking:\n")
-        if command.strip() in ['exit', 'quit', 'Quit', 'stop']:
-            stopEvent.set()
-            break
 
-async def main():
+
+async def read_stdin() -> str:
+    loop = asyncio.get_running_loop()
+    return loop.run_in_executor(None, sys.stdin.readline)
+
+if __name__ == '__main__':
     parser = ap.ArgumentParser(description='Client application for the Moessbauereffect\
             experiment, connects to the server and stores the Data on the local machine')
     parser.add_argument('K', help='The parameter of the\
@@ -105,24 +131,28 @@ async def main():
     parser.add_argument('-c', '--count', help='Sets the number of events to collect and process\
             before stopping automatically')
 
-    stopEvent = asyncio.Event()
     args = parser.parse_args()
-
-    # this is a stdin replacement that is async
-    prompt = Prompt()
-    raw_input = functools.partial(prompt, end='', flush=True)
 
     uri = f'ws://{args.IP}:{args.Port}/websocket\
 ?k={args.K}&l={args.L}&m={args.M}&pthresh={args.peakthresh}&t_dead={args.deadtime}'
 
-    output = open(args.output, 'w+')
-    await asyncio.gather(
-            process_data(uri, output, stopEvent, [], args.count),
-            read_from_keyboard(raw_input, stopEvent),
-    )
-
-
-if __name__ == "__main__":
+    plt_process_queue = Queue()
+    plot_process = Process(target=plotting_process, args=plt_process_queue,))
+    plot_process.start()
+    plt_aqueue = asyncio.Queue()
+    file_aqueue = asyncio.Queue()
     loop = asyncio.get_event_loop()
-    loop.run_until_complete(main())
+    loop.create_task(write_to_file(args.output, file_aqueue))
+    loop.create_task(write_to_other_process(plt_aqueue, plt_process_queue))
+    loop.create_task(process_data(uri, [file_aqueue, plt_aqueue]))
+    while True:
+        line = loop.run_until_complete(read_stdin())
+        if line.strip() in ['exit', 'quit', 'stop', 'Quit']:
+            break
+    pending = asyncio.all_tasks(loop=loop)
+    for task in pending:
+        task.cancel()
+    group = asyncio.gather(*pending, return_exceptions=True)
+    loop.run_until_complete(group)
     loop.close()
+    plt_process.join()
