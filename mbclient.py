@@ -43,8 +43,13 @@ class ProcessPlotter:
         self.bins = bins
         self.hist_values = np.zeros_like(bins[1:])
         self.fig, self.ax = plt.subplots()
-        self.hist, self.bins, self.patches = self.ax.hist([], self.bins)
+        self.hist, self.bins, self.patches = self.ax.hist([], self.bins,
+                color = 'blue')
         self.ax.set_ylim(0, 5000)
+        self.ax.set_xlabel(r'Pulshoehe $\propto$ Energie')
+        self.ax.set_ylabel('Ereignisanzahl')
+        self.ax.grid()
+        self.ax.set_title('Pulshoehenspektrum')
         timer = self.fig.canvas.new_timer(interval=500)
         timer.add_callback(self.call_back)
         timer.start()
@@ -94,6 +99,8 @@ async def process_data(uri, file_aqueue, plot_aqueue):
             except (asyncio.CancelledError, websockets.exceptions.ConnectionClosedError) as e:
                 if e is asyncio.CancelledError:
                     await websocket.close()
+                plot_aqueue.put_nowait(None)
+                file_aqueue.put_nowait(None)
                 print('', end='\r')
                 print('Shutting Down')
                 print('Parameters of the experiment:')
