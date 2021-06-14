@@ -46,20 +46,20 @@ cycle: {self.cycle}, speed: {self.speed}"
         largetmp = bytearray(b'\x00\x00\x00\x00\x00\x00\x00\x00')
         for i, b in enumerate(array[0:5]):
             largetmp[i] |= b
-        timestamp = struct.unpack('<Q', largetmp)
+        timestamp = struct.unpack('<Q', largetmp)[0]
         for i, b in enumerate(array[5:7]):
             tmp[i] |= b
         tmp[2] |= array[7] & 0x03
-        cycle = struct.unpack('<I', tmp)
+        cycle = struct.unpack('<I', tmp)[0]
         tmp = bytearray(b'\x00\x00\x00\x00')
         tmp[0] = array[7] >> 2
         tmp[0] |= (array[8] << 6) & 0xff
         tmp[1] = (array[8] & 0x0c) >> 2
-        speed = struct.unpack('<I', tmp)
+        speed = struct.unpack('<I', tmp)[0]
         tmp = bytearray(b'\x00\x00\x00\x00')
         tmp[0] = array[8] >> 4
         for i, b in enumerate(array[9:12]):
             tmp[i] |= (b << 4) & 0xff
             tmp[i+1] = b >> 4
-        peak_height = struct.unpack('<I', tmp)
+        peak_height = struct.unpack('<I', tmp)[0]
         return MeasuredPeak(timestamp, peak_height, cycle, speed)

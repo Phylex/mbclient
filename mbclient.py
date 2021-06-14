@@ -75,9 +75,9 @@ async def plot_data(queue, plotter):
             plotter.plot(None)
             return True
         if len(data_to_send) < 1000:
-            data_to_send.append(data.peak_height)
+            data_to_send.append(data)
         else:
-            data_to_send.append(data.peak_height)
+            data_to_send.append(data)
             plotter.plot(data_to_send)
             data_to_send = []
         queue.task_done()
@@ -107,13 +107,11 @@ async def read_stdin() -> str:
 
 
 async def main(uri, args):
-    HIST_BINS = np.linspace(0, args.histmax, 3000)
     print('To stop the data taking, please type "stop" during execution')
-    plotter = NBPlot(HIST_BINS)
+    plotter = NBPlot(args.histmin, args.histmax)
     await asyncio.sleep(5)
     file_aqueue = asyncio.Queue()
     plot_aqueue = asyncio.Queue()
-    loop = asyncio.get_running_loop()
     asyncio.create_task(write_to_file(args.output, file_aqueue))
     asyncio.create_task(plot_data(plot_aqueue, plotter))
     asyncio.create_task(process_data(uri, file_aqueue, plot_aqueue))
@@ -148,8 +146,10 @@ if __name__ == '__main__':
             is a CSV file with one line per event')
     parser.add_argument('-p', '--Port', help='Port of the TCP connection.\
             defaults to 8080', default=8080, type=int)
-    parser.add_argument('-hm', '--histmax', help='maximum pulse height of the\
-            pulse height spectrum', type=int, default=20000000)
+    parser.add_argument('-hmax', '--histmax', help='maximum pulse height of the\
+            pulse height spectrum', type=int, default=18000000)
+    parser.add_argument('-hmin', '--histmin', help='minimum pulse height of the\
+            pulse height spectrum', type=int, default=500000)
 
     args = parser.parse_args()
 

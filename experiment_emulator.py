@@ -2,9 +2,10 @@ import mbdatatypes as mbd
 import websockets as ws
 import numpy as np
 import asyncio
+import sys
 
 async def send_out_data(websocket, path):
-    with open('pulse_height_spektrum') as f:
+    with open(sys.argv[1]) as f:
         _ = f.readline()
         while True:
             linecount = np.random.randint(100)
