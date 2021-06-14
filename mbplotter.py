@@ -26,7 +26,7 @@ class ProcessPlotter:
                 return False
             tmp_hist, _ = np.histogram(command, self.bins)
             self.hist_values += tmp_hist
-            for count, rect in zip(self.hist_values, self.patches.patches):
+            for count, rect in zip(self.hist_values, self.patches):
                 rect.set_height(count)
         self.fig.canvas.draw()
         return True
@@ -41,7 +41,7 @@ class ProcessPlotter:
         self.bins = bins
         self.hist_values = np.zeros_like(bins[1:])
         self.fig, self.ax = plt.subplots()
-        self.hist, self.bins, self.patches = self.ax.hist([], self.bins,
+        self.hist, self.bins, self.patches = self.ax.hist([0,], self.bins,
                                                           color='navy')
         self.ax.set_ylim(0, 5000)
         self.ax.set_xlabel(r'Pulshoehe $\propto$ Energie')

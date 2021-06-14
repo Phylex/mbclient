@@ -50,9 +50,9 @@ async def process_data(uri, file_aqueue, plot_aqueue):
                     pd = msg[i*12:(i+1)*12]
                     decoded_peaks.append(mbd.MeasuredPeak.decode_from_bytes(pd))
                     count += 1
-                for peak in peaks:
-                    file_aqueue.put_nowait(peaks)
-                    plot_aqueue.put_nowait(peaks)
+                for peak in decoded_peaks:
+                    file_aqueue.put_nowait(peak)
+                    plot_aqueue.put_nowait(peak)
                 print("measured peaks: {}".format(count), end='\r')
             else:  # this is the debug part
                 peak = mbd.MeasuredPeak.decode_from_line(msg)
@@ -107,7 +107,7 @@ async def read_stdin() -> str:
 
 
 async def main(uri, args):
-    HIST_BINS = np.linspace(0, 15000000, 3000)
+    HIST_BINS = np.linspace(0, args.histmax, 3000)
     print('To stop the data taking, please type "stop" during execution')
     plotter = NBPlot(HIST_BINS)
     await asyncio.sleep(5)
@@ -148,14 +148,16 @@ if __name__ == '__main__':
             is a CSV file with one line per event')
     parser.add_argument('-p', '--Port', help='Port of the TCP connection.\
             defaults to 8080', default=8080, type=int)
+    parser.add_argument('-hm', '--histmax', help='maximum pulse height of the\
+            pulse height spectrum', type=int, default=20000000)
 
     args = parser.parse_args()
 
-    debug = True
+    debug = False
     if not debug:
         URI = f'ws://{args.IP}:{args.Port}/websocket\
 ?k={args.K}&l={args.L}&m={args.M}&pthresh={args.peakthresh}\
-&t_dead={args.deadtime}'
+&t_dead={args.accumtime}'
     else:
         URI = 'ws://localhost:8080'
 
