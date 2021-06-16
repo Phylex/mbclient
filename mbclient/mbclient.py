@@ -7,6 +7,9 @@ import numpy as np
 import websockets
 import mbdatatypes as mbd
 from mbplotter import NBPlot
+import sys
+
+debug = False
 
 async def process_data(uri, out_queues):
     """Coroutine that receives the data from the server
@@ -128,8 +131,7 @@ async def main(uri, args):
     print('')
     return True
 
-
-if __name__ == '__main__':
+def main(argv):
     parser = ap.ArgumentParser(description='Client application for\
             the Moessbauereffect experiment, connects to the server\
             and stores the Data on the local machine')
@@ -159,9 +161,8 @@ if __name__ == '__main__':
             pulse height spectrum', type=int, default=500000)
     parser.add_argument('-plt', '--plot', action='store_true', help='enable plotting')
 
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
-    debug = False
     if not debug:
         URI = f'ws://{args.IP}:{args.Port}/websocket\
 ?k={args.K}&l={args.L}&m={args.M}&pthresh={args.peakthresh}\
