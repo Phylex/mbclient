@@ -1,5 +1,5 @@
 import setuptools
-with open("README.md", "r", encoding="utf-8") as fh:
+with open("README.rst", "r", encoding="utf-8") as fh:
     long_description = fh.read()
 
 setuptools.setup(
@@ -7,6 +7,7 @@ setuptools.setup(
         version='1.0.0',
         description='A client for the Moessbauer experiment of the KIT-Physics Laboratory course',
         long_description=long_description,
+        long_description_content_type='text/markdown',
         url='https://github.com/phylex/mbclient',
         author='Alexander Becker',
         author_email='galax.becker@live.de',
