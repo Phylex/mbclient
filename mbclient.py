@@ -8,7 +8,7 @@ import websockets
 import mbdatatypes as mbd
 from mbplotter import NBPlot
 
-async def process_data(uri, file_aqueue, plot_aqueue):
+async def process_data(uri, out_queues):
     """Coroutine that receives the data from the server
 
     This coroutine is the only one that directly reads frames from
@@ -38,8 +38,8 @@ async def process_data(uri, file_aqueue, plot_aqueue):
                 print(' '*40, end='\r')
                 print('closing websocket')
                 print('A total of {} peaks where recorded'.format(count))
-                plot_aqueue.put_nowait(None)
-                file_aqueue.put_nowait(None)
+                for queue in out_queues:
+                    queue.put_nowait(None)
                 return True
             if not debug:
                 if len(msg) % 12 != 0:
@@ -51,15 +51,15 @@ async def process_data(uri, file_aqueue, plot_aqueue):
                     decoded_peaks.append(mbd.MeasuredPeak.decode_from_bytes(pd))
                     count += 1
                 for peak in decoded_peaks:
-                    file_aqueue.put_nowait(peak)
-                    plot_aqueue.put_nowait(peak)
+                    for queue in out_queues:
+                        queue.put_nowait(peak)
                 print("measured peaks: {}".format(count), end='\r')
             else:  # this is the debug part
                 peak = mbd.MeasuredPeak.decode_from_line(msg)
                 count += 1
                 print("measured peaks: {}".format(count), end='\r')
-                file_aqueue.put_nowait(peak)
-                plot_aqueue.put_nowait(peak)
+                for queue in out_queues:
+                    queue.put_nowait(peak)
 
 
 async def plot_data(queue, plotter):
@@ -108,13 +108,19 @@ async def read_stdin() -> str:
 
 async def main(uri, args):
     print('To stop the data taking, please type "stop" during execution')
-    plotter = NBPlot(args.histmin, args.histmax)
-    await asyncio.sleep(5)
+    if args.plot:
+        plotter = NBPlot(args.histmin, args.histmax)
+        await asyncio.sleep(5)
+    queues = []
     file_aqueue = asyncio.Queue()
-    plot_aqueue = asyncio.Queue()
+    queues.append(file_aqueue)
+    if args.plot:
+        plot_aqueue = asyncio.Queue()
+        queues.append(plot_aqueue)
     asyncio.create_task(write_to_file(args.output, file_aqueue))
-    asyncio.create_task(plot_data(plot_aqueue, plotter))
-    asyncio.create_task(process_data(uri, file_aqueue, plot_aqueue))
+    if args.plot:
+        asyncio.create_task(plot_data(plot_aqueue, plotter))
+    asyncio.create_task(process_data(uri, queues))
     result = ''
     while result not in ['stop', 'quit']:
         result = await read_stdin()
@@ -150,6 +156,7 @@ if __name__ == '__main__':
             pulse height spectrum', type=int, default=18000000)
     parser.add_argument('-hmin', '--histmin', help='minimum pulse height of the\
             pulse height spectrum', type=int, default=500000)
+    parser.add_argument('-plt' '--plot', action='store_true', help='enable plotting')
 
     args = parser.parse_args()
 
