@@ -68,8 +68,9 @@ async def plot_data(queue, plotter):
         try:
             data = await queue.get()
         except asyncio.CancelledError:
-            plotter.plot(None)
-            print('Shutting down plotter (this may take a few seconds)...')
+            if not plotter.joined:
+                plotter.plot(None)
+                print('Shutting down plotter (this may take a few seconds)...')
             return True
         if data is None:
             plotter.plot(None)
@@ -156,7 +157,7 @@ if __name__ == '__main__':
             pulse height spectrum', type=int, default=18000000)
     parser.add_argument('-hmin', '--histmin', help='minimum pulse height of the\
             pulse height spectrum', type=int, default=500000)
-    parser.add_argument('-plt' '--plot', action='store_true', help='enable plotting')
+    parser.add_argument('-plt', '--plot', action='store_true', help='enable plotting')
 
     args = parser.parse_args()
 

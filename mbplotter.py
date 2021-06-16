@@ -95,11 +95,21 @@ class NBPlot:
         self.plot_process = mp.Process(target=self.plotter,
                                        args=(plotter_pipe,), daemon=True)
         self.plot_process.start()
+        self.joined = False
     def plot(self, data=None, finished=False):
-        send = self.plot_pipe.send
-        if finished:
-            send(None)
-        else:
-            if data is None:
-                data = np.random.rand(100)
-            send(data)
+        if self.plot_process.is_alive():
+            send = self.plot_pipe.send
+            if finished:
+                data = None
+            try:
+                send(data)
+            except (BrokenPipeError, ConnectionResetError):
+                print("The plotter was closed")
+                self.plot_pipe.close()
+                self.plot_process.join()
+                self.joined = True
+        elif not self.joined:
+            self.plot_pipe.close()
+            self.plot_process.join()
+            self.joined = True
+
