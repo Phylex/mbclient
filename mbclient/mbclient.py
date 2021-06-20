@@ -3,12 +3,42 @@ import asyncio
 import time
 import numpy as np
 import websockets
+import yaml
+import sys
 import mbclient.mbdatatypes as mbd
 from mbclient.mbplotter import NBPlot
 
-debug = False
 
-async def process_data(uri, out_queues):
+def parse_config_from_yml(path_to_yaml):
+    with open(path_to_yaml, 'r') as f:
+        config = yaml.safe_load(f.read())
+    try:
+        k = config['basic']['rise-time']
+        l = config['basic']['hold-time']
+        m = config['basic']['pulse-decay-time']
+        pthresh = config['basic']['pulse-height-threshhold']
+        ip = config['environment']['server-ip']
+        port = config['environment']['server-port']
+    except KeyError as e:
+        print(f'The setting {e} was not found in the config file {path_to_yaml} it is however neccesary')
+        sys.exit(1)
+    if 'advanced' in config.keys():
+        if 'accumulation-time' in config['advanced'].keys():
+            accum_time = config['advanced']['accumulation-time']
+        else:
+            accum_time = int(0.1 * k)+l
+        if 'debug' in config['advanced'].keys():
+            debug = config['advanced']['debug']
+        else:
+            debug = False
+    else:
+        accum_time = int(0.1 * k)+l
+        debug = False
+    return (k, l, m, pthresh, accum_time, ip, port, debug)
+
+
+
+async def process_data(uri, out_queues, debug):
     """Coroutine that receives the data from the server
 
     This coroutine is the only one that directly reads frames from
@@ -107,21 +137,21 @@ async def read_stdin() -> str:
     return result
 
 
-async def amain(uri, args):
+async def amain(uri, histmin, histmax, plot, output, debug):
     print('To stop the data taking, please type "stop" during execution')
-    if args.plot:
-        plotter = NBPlot(args.histmin, args.histmax)
+    if plot:
+        plotter = NBPlot(histmin, histmax)
         await asyncio.sleep(5)
     queues = []
     file_aqueue = asyncio.Queue()
     queues.append(file_aqueue)
-    if args.plot:
+    if plot:
         plot_aqueue = asyncio.Queue()
         queues.append(plot_aqueue)
-    asyncio.create_task(write_to_file(args.output, file_aqueue))
-    if args.plot:
+    asyncio.create_task(write_to_file(output, file_aqueue))
+    if plot:
         asyncio.create_task(plot_data(plot_aqueue, plotter))
-    asyncio.create_task(process_data(uri, queues))
+    asyncio.create_task(process_data(uri, queues, debug))
     result = ''
     while result not in ['stop', 'quit']:
         result = await read_stdin()

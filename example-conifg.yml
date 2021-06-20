@@ -1,0 +1,9 @@
+basic:
+  rise-time: 10
+  hold-time: 20
+  pulse-decay-time: 390
+  pulse-height-threshhold: 1000000
+
+environment:
+  server-ip: '192.168.0.2'
+  server-port: '8080'

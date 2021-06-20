@@ -63,3 +63,6 @@ cycle: {self.cycle}, speed: {self.speed}"
             tmp[i+1] = b >> 4
         peak_height = struct.unpack('<I', tmp)[0]
         return MeasuredPeak(timestamp, peak_height, cycle, speed)
+
+    def to_array(self):
+        return [self.timestamp, self.peak_height, self.cycle, self.speed]
