@@ -16,6 +16,7 @@ setuptools.setup(
             'matplotlib',
             'websockets',
             'argparse',
+            'pyyaml',
         ],
         packages=['mbclient'],
         entry_points={
