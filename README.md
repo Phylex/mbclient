@@ -3,7 +3,6 @@ Client software and on the fly visualisation tools for the moessbauer effect.
 
 ## The client software
 The client software is a command line tool capable of connecting to the Red-Pitaya running the [MBFilter](https://github.com/phylex/MBFilter)
-
 program in server mode, providing the server on the Red-Pitaya with all the neccesary information to configure itself properly and to store the data
 received from the Red-Pitaya in a `.csv` file for Analysis by the student and also Visualise the data as a pulse-height spektrum and a 2d spektrum of
 pulse height vs. Digital Function Generator Address. The Visualisation is updated continuously and can be exited without interfering with the data
@@ -33,11 +32,20 @@ advanced:
 
 The configuration options `rise-time`, `hold-time` and `pulse-decay-time` are the parameters of the trapezoidal filter. The `pulse-height-threshhold`
 is used to suppress small (and thus low energy) peaks and primarily acts to reduce noise, as the high frequency of the noise can overwhelm the filter.
-
 The IP of server should not change through the course of a semester and the port only changes if explicitly set at server startup.
-
 The accumulation-time is used to avoid counting one peak multiple times. It should only be set if there are major problems with the setup, as it is
 automatically calculated from the `rise-time` and `hold-time` of the trapezoidal filter.
+
+The second way is via command line arguments, that are similarly named to the configuration options. The command line values, when given, override the
+configuration options specified in the config file.
+
+### Configuring plotting
+The command line also has a flag to disable plotting. Disabling plotting should be done when attempting the long duration measurements as plotting the
+values slows down the process significantly after a while. The plot can be closed at any time during the program execution without interrupting the
+data taking activities. It however cannot be restarted after being closed.
+
+The `--histmin` and `--histmax` options set the lower and upper bound on the pulse-height of the events being plotted. The bin width is adjusted
+automatically. The plot also automatically rescales so that all the data is visible.
 
 ## Behaviour of the Program
 The server will stop sending events, if the FPGA-Internal hardware buffer overflows. This is an indicator, that the system as a whole is overwhelmed
